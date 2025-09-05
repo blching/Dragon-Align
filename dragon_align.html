@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragonboat Lineup Optimizer</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+        
+        h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button.secondary {
+            background: var(--secondary);
+        }
+        
+        button.secondary:hover {
+            background: #27ae60;
+        }
+        
+        button.accent {
+            background: var(--accent);
+        }
+        
+        button.accent:hover {
+            background: #c0392b;
+        }
+        
+        button.sample {
+            background: #9b59b6;
+        }
+        
+        button.sample:hover {
+            background: #8e44ad;
+        }
+        
+        .paddler-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+        
+        .paddler-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .paddler-item:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        .paddler-info {
+            flex: 1;
+        }
+        
+        .paddler-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        
+        .boat-visualization {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 5px;
+            margin-top: 20px;
+        }
+        
+        .row-number {
+            text-align: center;
+            font-weight: bold;
+            padding: 10px;
+            background: var(--light);
+            border-radius: 4px;
+        }
+        
+        .seat {
+            padding: 10px;
+            margin: 2px;
+            background: #e8f4fc;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .seat.left {
+            background: #d1edff;
+            border-left: 3px solid var(--primary);
+        }
+        
+        .seat.right {
+            background: #d1edff;
+            border-right: 3px solid var(--primary);
+        }
+        
+        .preferred {
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--dark);
+        }
+        
+        .instructions {
+            background: #fff8e1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .instructions h3 {
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        .balance-meter {
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .balance-fill {
+            height: 100%;
+            width: 50%;
+            background: var(--secondary);
+            transition: all 0.5s ease;
+        }
+        
+        .balance-indicator {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 20px;
+            background: var(--accent);
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .weight-difference {
+            margin-top: 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .good-balance {
+            color: var(--secondary);
+        }
+        
+        .fair-balance {
+            color: #f39c12;
+        }
+        
+        .poor-balance {
+            color: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Dragonboat Lineup Optimizer</h1>
+        <p>Create balanced dragonboat lineups based on paddler attributes</p>
+    </header>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Add Paddler</h2>
+            <form id="paddler-form">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="weight">Weight (lbs)</label>
+                    <input type="number" id="weight" min="80" max="300" required>
+                </div>
+                <div class="form-group">
+                    <label for="side">Preferred Side</label>
+                    <select id="side" required>
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                        <option value="both">No Preference</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <button type="submit">Add Paddler</button>
+            </form>
+            
+            <h2 style="margin-top: 30px;">Paddlers</h2>
+            <ul id="paddler-list" class="paddler-list"></ul>
+            
+            <div class="button-group">
+                <button id="generate-lineup" class="secondary">Generate Lineup</button>
+                <button id="load-sample" class="sample">Load Sample Data</button>
+                <button id="reset-list" class="accent">Reset All</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Boat Lineup</h2>
+            <div id="lineup-container">
+                <p id="no-lineup-message" class="instructions">Add paddlers and generate a lineup to see results here.</p>
+                <div id="lineup-results" style="display: none;">
+                    <div class="boat-visualization" id="boat-visualization"></div>
+                    
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="left-weight">0 lbs</div>
+                            <div class="stat-label">Left Side Weight</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="right-weight">0 lbs</div>
+                            <div class="stat-label">Right Side Weight</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="weight-difference">0 lbs</div>
+                            <div class="stat-label">Weight Difference</div>
+                            <div class="balance-meter">
+                                <div class="balance-fill" id="balance-fill"></div>
+                                <div class="balance-indicator"></div>
+                            </div>
+                            <div class="weight-difference" id="balance-status">Perfect balance</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="preferred-side">0%</div>
+                            <div class="stat-label">Preferred Side Matched</div>
+                        </div>
+                    </div>
+                    
+                    <div class="instructions">
+                        <h3>Lineup Information</h3>
+                        <p>This lineup optimizes for weight balance between left and right sides of the boat, while maximizing preferred side assignments.</p>
+                        <p>Drummer and steerer positions are not included in these calculations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Store paddlers
+            let paddlers = JSON.parse(localStorage.getItem('dragonboatPaddlers')) || [];
+            
+            // Form and UI elements
+            const paddlerForm = document.getElementById('paddler-form');
+            const paddlerList = document.getElementById('paddler-list');
+            const generateButton = document.getElementById('generate-lineup');
+            const resetButton = document.getElementById('reset-list');
+            const loadSampleButton = document.getElementById('load-sample');
+            const noLineupMessage = document.getElementById('no-lineup-message');
+            const lineupResults = document.getElementById('lineup-results');
+            const boatVisualization = document.getElementById('boat-visualization');
+            
+            // Statistics elements
+            const leftWeightEl = document.getElementById('left-weight');
+            const rightWeightEl = document.getElementById('right-weight');
+            const weightDifferenceEl = document.getElementById('weight-difference');
+            const preferredSideEl = document.getElementById('preferred-side');
+            const balanceFillEl = document.getElementById('balance-fill');
+            const balanceStatusEl = document.getElementById('balance-status');
+            
+            // Sample data for testing (in lbs)
+            const samplePaddlers = [
+                { name: "Alex Johnson", weight: 160, side: "left", gender: "male" },
+                { name: "Sarah Williams", weight: 140, side: "right", gender: "female" },
+                { name: "Mike Chen", weight: 185, side: "right", gender: "male" },
+                { name: "Emily Davis", weight: 135, side: "left", gender: "female" },
+                { name: "David Kim", weight: 170, side: "both", gender: "male" },
+                { name: "Jessica Martinez", weight: 150, side: "right", gender: "female" },
+                { name: "James Wilson", weight: 195, side: "left", gender: "male" },
+                { name: "Olivia Brown", weight: 140, side: "right", gender: "female" },
+                { name: "Robert Taylor", weight: 180, side: "both", gender: "male" },
+                { name: "Sophia Anderson", weight: 130, side: "left", gender: "female" },
+                { name: "Daniel Thomas", weight: 165, side: "right", gender: "male" },
+                { name: "Emma Garcia", weight: 135, side: "both", gender: "female" },
+                { name: "Christopher Lee", weight: 190, side: "left", gender: "male" },
+                { name: "Ava Rodriguez", weight: 145, side: "right", gender: "female" },
+                { name: "Matthew Hernandez", weight: 175, side: "both", gender: "male" },
+                { name: "Isabella Lopez", weight: 150, side: "left", gender: "female" },
+                { name: "Andrew Gonzalez", weight: 182, side: "right", gender: "male" },
+                { name: "Mia Perez", weight: 125, side: "both", gender: "female" },
+                { name: "Joshua Moore", weight: 168, side: "left", gender: "male" },
+                { name: "Charlotte Jackson", weight: 145, side: "right", gender: "female" },
+                { name: "Joseph Martin", weight: 190, side: "both", gender: "male" },
+                { name: "Amelia White", weight: 130, side: "left", gender: "female" },
+                { name: "Ryan Clark", weight: 178, side: "right", gender: "male" },
+                { name: "Harper Lewis", weight: 140, side: "both", gender: "female" }
+            ];
+            
+            // Render paddler list
+            function renderPaddlerList() {
+                paddlerList.innerHTML = '';
+                
+                if (paddlers.length === 0) {
+                    paddlerList.innerHTML = '<li class="paddler-item">No paddlers added yet</li>';
+                    return;
+                }
+                
+                paddlers.forEach((paddler, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'paddler-item';
+                    
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'paddler-info';
+                    infoDiv.innerHTML = `
+                        <strong>${paddler.name}</strong> | 
+                        ${paddler.weight} lbs | 
+                        Prefers: ${paddler.side} | 
+                        ${paddler.gender}
+                    `;
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'paddler-actions';
+                    
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'accent btn-small';
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.addEventListener('click', () => {
+                        paddlers.splice(index, 1);
+                        savePaddlers();
+                        renderPaddlerList();
+                    });
+                    
+                    actionsDiv.appendChild(deleteButton);
+                    li.appendChild(infoDiv);
+                    li.appendChild(actionsDiv);
+                    
+                    paddlerList.appendChild(li);
+                });
+            }
+            
+            // Save paddlers to localStorage
+            function savePaddlers() {
+                localStorage.setItem('dragonboatPaddlers', JSON.stringify(paddlers));
+            }
+            
+            // Add new paddler
+            paddlerForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const name = document.getElementById('name').value;
+                const weight = parseInt(document.getElementById('weight').value);
+                const side = document.getElementById('side').value;
+                const gender = document.getElementById('gender').value;
+                
+                paddlers.push({
+                    name,
+                    weight,
+                    side,
+                    gender
+                });
+                
+                savePaddlers();
+                renderPaddlerList();
+                
+                // Reset form
+                paddlerForm.reset();
+            });
+            
+            // Load sample data
+            loadSampleButton.addEventListener('click', function() {
+                if (paddlers.length > 0) {
+                    if (!confirm('This will replace your current paddlers with sample data. Continue?')) {
+                        return;
+                    }
+                }
+                
+                paddlers = [...samplePaddlers];
+                savePaddlers();
+                renderPaddlerList();
+                
+                // Show notification
+                alert('Sample data loaded. Click "Generate Lineup" to see the optimized lineup.');
+            });
+            
+            // Reset all paddlers
+            resetButton.addEventListener('click', function() {
+                if (confirm('Are you sure you want to remove all paddlers?')) {
+                    paddlers = [];
+                    savePaddlers();
+                    renderPaddlerList();
+                    
+                    // Hide results
+                    noLineupMessage.style.display = 'block';
+                    lineupResults.style.display = 'none';
+                }
+            });
+            
+            // Generate lineup
+            generateButton.addEventListener('click', function() {
+                if (paddlers.length < 20) {
+                    alert(`You need at least 20 paddlers for a full lineup. You currently have ${paddlers.length}.`);
+                    return;
+                }
+                
+                const lineup = generateLineup(paddlers);
+                displayLineup(lineup);
+                
+                // Show results
+                noLineupMessage.style.display = 'none';
+                lineupResults.style.display = 'block';
+            });
+            
+            // Generate optimized lineup with left/right balance focus
+            function generateLineup(paddlers) {
+                // Create a copy to work with
+                const availablePaddlers = [...paddlers];
+                
+                // Sort by weight to help with balance
+                availablePaddlers.sort((a, b) => b.weight - a.weight);
+                
+                // Initialize empty boat (10 rows, 2 seats each)
+                const boat = Array(10).fill().map(() => ({ left: null, right: null }));
+                
+                // Separate paddlers by preference
+                const leftPref = availablePaddlers.filter(p => p.side === 'left');
+                const rightPref = availablePaddlers.filter(p => p.side === 'right');
+                const noPref = availablePaddlers.filter(p => p.side === 'both');
+                
+                // First pass: assign preferred sides where possible
+                for (let i = 0; i < 10; i++) {
+                    if (leftPref.length > 0) {
+                        boat[i].left = leftPref.shift();
+                    }
+                    
+                    if (rightPref.length > 0) {
+                        boat[i].right = rightPref.shift();
+                    }
+                }
+                
+                // Second pass: fill remaining spots with no preference paddlers
+                for (let i = 0; i < 10; i++) {
+                    if (!boat[i].left && noPref.length > 0) {
+                        boat[i].left = noPref.shift();
+                    }
+                    
+                    if (!boat[i].right && noPref.length > 0) {
+                        boat[i].right = noPref.shift();
+                    }
+                }
+                
+                // If we still have paddlers with preferences that couldn't be assigned to their preferred side,
+                // assign them to the opposite side
+                const remainingPaddlers = [...leftPref, ...rightPref, ...noPref];
+                
+                for (let i = 0; i < 10 && remainingPaddlers.length > 0; i++) {
+                    if (!boat[i].left) {
+                        boat[i].left = remainingPaddlers.shift();
+                    }
+                    
+                    if (!boat[i].right && remainingPaddlers.length > 0) {
+                        boat[i].right = remainingPaddlers.shift();
+                    }
+                }
+                
+                // Now balance the left and right sides by swapping if needed
+                return balanceLineup(boat);
+            }
+            
+            // Balance the lineup by swapping paddlers between sides
+            function balanceLineup(boat) {
+                let leftWeight = 0;
+                let rightWeight = 0;
+                
+                // Calculate current weights
+                for (let i = 0; i < 10; i++) {
+                    if (boat[i].left) leftWeight += boat[i].left.weight;
+                    if (boat[i].right) rightWeight += boat[i].right.weight;
+                }
+                
+                const initialDifference = Math.abs(leftWeight - rightWeight);
+                
+                // Try to improve balance by swapping paddlers
+                for (let i = 0; i < 10; i++) {
+                    for (let j = i + 1; j < 10; j++) {
+                        // Check if swapping left paddlers between rows improves balance
+                        if (boat[i].left && boat[j].left) {
+                            const newLeftWeight = leftWeight - boat[i].left.weight + boat[j].left.weight;
+                            const newRightWeight = rightWeight;
+                            const newDifference = Math.abs(newLeftWeight - newRightWeight);
+                            
+                            if (newDifference < initialDifference) {
+                                // Swap improves balance, so perform the swap
+                                const temp = boat[i].left;
+                                boat[i].left = boat[j].left;
+                                boat[j].left = temp;
+                                return boat;
+                            }
+                        }
+                        
+                        // Check if swapping right paddlers between rows improves balance
+                        if (boat[i].right && boat[j].right) {
+                            const newLeftWeight = leftWeight;
+                            const newRightWeight = rightWeight - boat[i].right.weight + boat[j].right.weight;
+                            const newDifference = Math.abs(newLeftWeight - newRightWeight);
+                            
+                            if (newDifference < initialDifference) {
+                                // Swap improves balance, so perform the swap
+                                const temp = boat[i].right;
+                                boat[i].right = boat[j].right;
+                                boat[j].right = temp;
+                                return boat;
+                            }
+                        }
+                        
+                        // Check if swapping between left and right in the same row improves balance
+                        if (boat[i].left && boat[i].right) {
+                            const newLeftWeight = leftWeight - boat[i].left.weight + boat[i].right.weight;
+                            const newRightWeight = rightWeight - boat[i].right.weight + boat[i].left.weight;
+                            const newDifference = Math.abs(newLeftWeight - newRightWeight);
+                            
+                            if (newDifference < initialDifference) {
+                                // Swap improves balance, so perform the swap
+                                const temp = boat[i].left;
+                                boat[i].left = boat[i].right;
+                                boat[i].right = temp;
+                                return boat;
+                            }
+                        }
+                    }
+                }
+                
+                return boat;
+            }
+            
+            // Display the lineup in the UI
+            function displayLineup(boat) {
+                // Clear previous visualization
+                boatVisualization.innerHTML = '';
+                
+                // Add header row
+                const headerRow = document.createElement('div');
+                headerRow.className = 'row-number';
+                headerRow.textContent = 'Row';
+                
+                const leftHeader = document.createElement('div');
+                leftHeader.className = 'seat';
+                leftHeader.textContent = 'Left';
+                
+                const rightHeader = document.createElement('div');
+                rightHeader.className = 'seat';
+                rightHeader.textContent = 'Right';
+                
+                boatVisualization.appendChild(headerRow);
+                boatVisualization.appendChild(leftHeader);
+                boatVisualization.appendChild(rightHeader);
+                
+                // Add each row of the boat
+                boat.forEach((row, index) => {
+                    const rowNumber = document.createElement('div');
+                    rowNumber.className = 'row-number';
+                    rowNumber.textContent = index + 1;
+                    
+                    const leftSeat = document.createElement('div');
+                    leftSeat.className = `seat left ${row.left && row.left.side === 'left' ? 'preferred' : ''}`;
+                    leftSeat.innerHTML = row.left ? `
+                        <strong>${row.left.name}</strong><br>
+                        ${row.left.weight} lbs<br>
+                        <small>Pref: ${row.left.side}</small>
+                    ` : 'Empty';
+                    
+                    const rightSeat = document.createElement('div');
+                    rightSeat.className = `seat right ${row.right && row.right.side === 'right' ? 'preferred' : ''}`;
+                    rightSeat.innerHTML = row.right ? `
+                        <strong>${row.right.name}</strong><br>
+                        ${row.right.weight} lbs<br>
+                        <small>Pref: ${row.right.side}</small>
+                    ` : 'Empty';
+                    
+                    boatVisualization.appendChild(rowNumber);
+                    boatVisualization.appendChild(leftSeat);
+                    boatVisualization.appendChild(rightSeat);
+                });
+                
+                // Calculate and display statistics
+                calculateStatistics(boat);
+            }
+            
+            // Calculate lineup statistics with focus on left/right balance
+            function calculateStatistics(boat) {
+                // Calculate left and right weights
+                let leftWeight = 0;
+                let rightWeight = 0;
+                
+                for (let i = 0; i < 10; i++) {
+                    if (boat[i].left) leftWeight += boat[i].left.weight;
+                    if (boat[i].right) rightWeight += boat[i].right.weight;
+                }
+                
+                const weightDifference = Math.abs(leftWeight - rightWeight);
+                const totalWeight = leftWeight + rightWeight;
+                const balancePercentage = (leftWeight / totalWeight) * 100;
+                
+                // Update UI with statistics
+                leftWeightEl.textContent = `${leftWeight} lbs`;
+                rightWeightEl.textContent = `${rightWeight} lbs`;
+                weightDifferenceEl.textContent = `${weightDifference} lbs`;
+                
+                // Update balance meter
+                balanceFillEl.style.width = `${balancePercentage}%`;
+                
+                // Set balance status
+                if (weightDifference < 50) {
+                    balanceStatusEl.textContent = "Excellent balance";
+                    balanceStatusEl.className = "weight-difference good-balance";
+                } else if (weightDifference < 100) {
+                    balanceStatusEl.textContent = "Good balance";
+                    balanceStatusEl.className = "weight-difference fair-balance";
+                } else {
+                    balanceStatusEl.textContent = "Needs improvement";
+                    balanceStatusEl.className = "weight-difference poor-balance";
+                }
+                
+                // Calculate preferred side percentage
+                let preferredCount = 0;
+                let totalCount = 0;
+                
+                boat.forEach(row => {
+                    if (row.left && row.left.side === 'left') preferredCount++;
+                    if (row.right && row.right.side === 'right') preferredCount++;
+                    totalCount += 2;
+                });
+                
+                const preferredPercentage = Math.round((preferredCount / totalCount) * 100);
+                preferredSideEl.textContent = `${preferredPercentage}%`;
+            }
+            
+            // Initialize the app
+            renderPaddlerList();
+        });
+    </script>
+</body>
+</html>
