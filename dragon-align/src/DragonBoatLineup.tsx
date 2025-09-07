@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Users, Scale, Target, RotateCcw, Download, Upload, Lock, Unlock, Edit3, Search, Filter, Save, Trash2, GripVertical, X } from 'lucide-react';
+import { Plus, Users, Scale, Target, RotateCcw, Download, Upload, Lock, Unlock, Edit3, Search, Trash2, GripVertical, X } from 'lucide-react';
 
 // Define TypeScript interfaces for our data structures
 interface TeamMember {
@@ -39,6 +39,39 @@ interface BoatStats {
     frontWeight: number;
     backWeight: number;
   };
+}
+
+interface Roster {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'master' | 'practice' | 'event' | 'other';
+  members: TeamMember[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface SavedLineup {
+  id: string;
+  name: string;
+  tag: 'Practice' | 'Race' | 'Other';
+  folder?: string;
+  description?: string;
+  data: {
+    currentLineup: TeamMember[];
+    alternativePaddlers: TeamMember[];
+    lineup: Boat | null;
+    lockedPositions: Record<string, TeamMember>;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Folder {
+  id: string;
+  name: string;
+  type: 'lineup' | 'roster';
+  parentId?: string; // For nested folders
 }
 
 const DragonBoatLineup: React.FC = () => {
@@ -259,7 +292,7 @@ const DragonBoatLineup: React.FC = () => {
     }
   };
 
-  const addToAlternatives = (member: TeamMember) => {
+  {/* const addToAlternatives = (member: TeamMember) => {
     if (alternativePaddlers.length >= 8) {
       alert('Maximum 8 alternative paddlers allowed');
       return;
@@ -267,7 +300,7 @@ const DragonBoatLineup: React.FC = () => {
     if (!alternativePaddlers.find(m => m.id === member.id) && !currentLineup.find(m => m.id === member.id)) {
       setAlternativePaddlers(prev => [...prev, member]);
     }
-  };
+  }; */}
 
   const removeFromAlternatives = (id: number) => {
     setAlternativePaddlers(prev => prev.filter(member => member.id !== id));
@@ -519,68 +552,81 @@ const DragonBoatLineup: React.FC = () => {
 
   const generateOptimalLineup = () => {
     if (currentLineup.length === 0) {
-      alert('Please add members to the current lineup first!');
-      return;
-    }
+    alert('Please add members to the current lineup first!');
+    return;
+  }
 
-    const paddlers = currentLineup.filter(m => m.role === 'paddler');
-    const drummers = currentLineup.filter(m => m.role === 'drummer');
-    const steerers = currentLineup.filter(m => m.role === 'steerer');
+  // Filter members by roles (now checking if roles array includes the role)
+  const paddlers = currentLineup.filter(m => m.roles.includes('paddler'));
+  const drummers = currentLineup.filter(m => m.roles.includes('drummer'));
+  const steerers = currentLineup.filter(m => m.roles.includes('steerer'));
 
-    // Check if we have a steerer (required)
-    if (steerers.length === 0) {
-      alert('A steerer is required to generate a lineup!');
-      return;
-    }
+  // Check if we have a steerer (required) - now using the new role system
+  if (steerers.length === 0) {
+    alert('A steerer is required to generate a lineup!');
+    return;
+  }
 
-    if (paddlers.length > 20) {
-      alert('Too many paddlers! Maximum 20 allowed.');
-      return;
-    }
+  if (paddlers.length > 20) {
+    alert('Too many paddlers! Maximum 20 allowed.');
+    return;
+  }
 
-    if (paddlers.length === 0) {
-      alert('At least one paddler is required to generate a lineup.');
-      return;
-    }
+  if (paddlers.length === 0) {
+    alert('At least one paddler is required to generate a lineup.');
+    return;
+  }
 
-    const boat = initializeBoat();
+  const boat = initializeBoat();
 
-    // Place locked positions first
-    Object.entries(lockedPositions).forEach(([position, member]) => {
-      if (position === 'drummer') {
-        boat.drummer = member;
-      } else if (position === 'steerer') {
-        boat.steerer = member;
-      } else {
-        const [rowStr, side] = position.split('-');
-        const rowNum = parseInt(rowStr);
-        const row = boat.rows.find(r => r.row === rowNum);
-        if (row) {
-          row[side as 'left' | 'right'] = member;
-        }
+  // Place locked positions first
+  Object.entries(lockedPositions).forEach(([position, member]) => {
+    if (position === 'drummer') {
+      boat.drummer = member;
+    } else if (position === 'steerer') {
+      boat.steerer = member;
+    } else {
+      const [rowStr, side] = position.split('-');
+      const rowNum = parseInt(rowStr);
+      const row = boat.rows.find(r => r.row === rowNum);
+      if (row) {
+        row[side as 'left' | 'right'] = member;
       }
-    });
-
-    // Get available members (not locked)
-    const availablePaddlers = paddlers.filter(p => 
-      !Object.values(lockedPositions).some(locked => locked && locked.id === p.id)
-    );
-    const availableDrummers = drummers.filter(d => 
-      !Object.values(lockedPositions).some(locked => locked && locked.id === d.id)
-    );
-    const availableSteerers = steerers.filter(s => 
-      !Object.values(lockedPositions).some(locked => locked && locked.id === s.id)
-    );
-
-    // Assign specialized roles if not locked
-    if (!boat.drummer && availableDrummers.length > 0) {
-      boat.drummer = availableDrummers[0];
     }
-    
-    // Steerer is required, use the first available one
-    if (!boat.steerer && availableSteerers.length > 0) {
-      boat.steerer = availableSteerers[0];
-    }
+  });
+
+  // Get available members (not locked) - updated to use roles.includes
+  const availablePaddlers = paddlers.filter(p => 
+    !Object.values(lockedPositions).some(locked => locked && locked.id === p.id)
+  );
+  const availableDrummers = drummers.filter(d => 
+    !Object.values(lockedPositions).some(locked => locked && locked.id === d.id)
+  );
+  const availableSteerers = steerers.filter(s => 
+    !Object.values(lockedPositions).some(locked => locked && locked.id === s.id)
+  );
+
+  // Assign specialized roles if not locked
+  if (!boat.drummer && availableDrummers.length > 0) {
+    // Prioritize members who are only drummers, then those with multiple roles
+    const dedicatedDrummer = availableDrummers.find(d => d.roles.length === 1);
+    boat.drummer = dedicatedDrummer || availableDrummers[0];
+  }
+  
+  // Steerer is required, use the first available one
+  // Prioritize members who are only steerers
+  if (!boat.steerer && availableSteerers.length > 0) {
+    const dedicatedSteerer = availableSteerers.find(s => s.roles.length === 1);
+    boat.steerer = dedicatedSteerer || availableSteerers[0];
+  }
+
+  // Enhanced placement algorithm with left-right balance as top priority
+  // Filter out members already placed in specialized roles
+  const placedSpecializedIds = [boat.drummer?.id, boat.steerer?.id].filter(Boolean);
+
+  /* const availablePaddlersForSeats = availablePaddlers.filter(
+  //  p => !placedSpecializedIds.includes(p.id)
+  //); */
 
     // Enhanced placement algorithm with left-right balance as top priority
     const malePaddlers = availablePaddlers.filter(p => p.gender === 'male').sort((a, b) => b.weight - a.weight);
@@ -660,7 +706,7 @@ const DragonBoatLineup: React.FC = () => {
 
         // Prefer paddler's preferred side (20% of total score)
         if (paddler.preferredSide === current.side) score += 200;
-        else if (paddler.preferredSide === 'none') score += 100;
+        else if (paddler.preferredSide === 'both') score += 100;
 
         // Balance front/back weight (10% of total score)
         const currentPosWeight = current.position === 'front' ? frontWeight : backWeight;
@@ -1020,76 +1066,6 @@ const DragonBoatLineup: React.FC = () => {
     });
   };
 
-  const DropZone = () => (
-    <div 
-      className="p-6 border-2 border-dashed border-red-300 bg-red-50 rounded-lg text-center transition-colors"
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setDragOverPosition('remove');
-      }}
-      onDragLeave={() => setDragOverPosition(null)}
-      onDrop={(e) => {
-        e.preventDefault();
-        try {
-          const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
-          const { id, source } = dragData;
-          
-          if (!id) return;
-          
-          const draggedMember = teamRoster.find(m => m.id === id) || 
-                              currentLineup.find(m => m.id === id) || 
-                              alternativePaddlers.find(m => m.id === id);
-          
-          if (!draggedMember) return;
-          
-          // Remove from boat if it's in the boat
-          if (lineup && isPaddlerInBoat(draggedMember)) {
-            const newLineup = { ...lineup };
-            let removed = false;
-            
-            // Remove from all positions
-            newLineup.rows.forEach(row => {
-              if (row.left?.id === id) {
-                row.left = null;
-                removed = true;
-              }
-              if (row.right?.id === id) {
-                row.right = null;
-                removed = true;
-              }
-            });
-            
-            if (newLineup.drummer?.id === id) {
-              newLineup.drummer = null;
-              removed = true;
-            }
-            
-            if (newLineup.steerer?.id === id) {
-              newLineup.steerer = null;
-              removed = true;
-            }
-            
-            if (removed) {
-              newLineup.stats = calculateStats(newLineup);
-              setLineup(newLineup);
-            }
-          }
-          
-          // Move to alternatives
-          moveToAlternatives(draggedMember);
-        } catch (error) {
-          console.error('Error handling drop:', error);
-        }
-        setDragOverPosition(null);
-      }}
-    >
-      <X size={24} className="mx-auto text-red-400 mb-2" />
-      <p className="text-sm text-red-600 font-medium">Drop here to remove from boat</p>
-      <p className="text-xs text-red-500">Paddler will be moved to alternatives</p>
-    </div>
-  );
-
   const clearLineup = () => {
     setLineup(null);
     setLockedPositions({});
@@ -1316,95 +1292,94 @@ const DragonBoatLineup: React.FC = () => {
   };
   
    const MemberCard = ({ member, onEdit, onRemove, onAdd, isSelected, onToggleSelect, showAdd = true, showRemove = true, draggable = false, className = '', source = 'roster' }: {
-  member: TeamMember;
-  onEdit?: (member: TeamMember) => void;
-  onRemove?: (id: number) => void;
-  onAdd?: (member: TeamMember) => void;
-  isSelected?: boolean;
-  onToggleSelect?: (member: TeamMember) => void;
-  showAdd?: boolean;
-  showRemove?: boolean;
-  draggable?: boolean;
-  className?: string;
-  source?: string;
-}) => (
-  <div 
-    className={`p-3 border rounded-lg transition-all duration-200 ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${className} ${
-      draggable ? 'cursor-grab hover:shadow-md active:cursor-grabbing' : ''
-    }`}
-    draggable={draggable}
-    onDragStart={draggable ? (e) => handleDragStart(e, member, source) : undefined}
-    onDragEnd={() => {
-      setIsDragging(false);
-      setDragOverSection(null);
-    }}
-  >
-    <div className="flex justify-between items-start">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          {onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => onToggleSelect && onToggleSelect(member)}
-              className="rounded"
-            />
-          )}
-          <div className="flex items-center gap-1">
-            <GripVertical size={14} className="text-gray-400" />
-            <div>
-              <h4 className="font-medium text-sm truncate">{member.name}</h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                <div>Weight: {member.weight} lbs</div>
-                {/* Fixed the roles.join() issue with optional chaining */}
-                <div>Roles: {member.roles?.join(', ') || 'No roles specified'}</div>
-                <div>Gender: {member.gender}</div>
+      member: TeamMember;
+      onEdit?: (member: TeamMember) => void;
+      onRemove?: (id: number) => void;
+      onAdd?: (member: TeamMember) => void;
+      isSelected?: boolean;
+      onToggleSelect?: (member: TeamMember) => void;
+      showAdd?: boolean;
+      showRemove?: boolean;
+      draggable?: boolean;
+      className?: string;
+      source?: string;
+    }) => (
+      <div 
+        className={`p-3 border rounded-lg transition-all duration-200 ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${className} ${
+          draggable ? 'cursor-grab hover:shadow-md active:cursor-grabbing' : ''
+        }`}
+        draggable={draggable}
+        onDragStart={draggable ? (e) => handleDragStart(e, member, source) : undefined}
+        onDragEnd={() => {
+          setIsDragging(false);
+          setDragOverSection(null);
+        }}
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              {onToggleSelect && (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect && onToggleSelect(member)}
+                  className="rounded"
+                />
+              )}
+              <div className="flex items-center gap-1">
+                <GripVertical size={14} className="text-gray-400" />
                 <div>
-                  Prefers: {
-                    member.preferredSide === 'left' ? 'Left only' :
-                    member.preferredSide === 'left-pref' ? 'Left (preferred)' :
-                    member.preferredSide === 'both' ? 'Both sides' :
-                    member.preferredSide === 'right-pref' ? 'Right (preferred)' :
-                    'Right only'
-                  }
+                  <h4 className="font-medium text-sm truncate">{member.name}</h4>
+                  <div className="text-xs text-gray-600 space-y-1 ">
+                    <div>Weight: {member.weight} lbs</div>
+                    <div> {member.roles?.join(', ') || 'No roles specified'}</div>
+                    <div>Gender: {member.gender}</div>
+                    <div>
+                      {
+                        member.preferredSide === 'left' ? 'Left only' :
+                        member.preferredSide === 'left-pref' ? 'Left (preferred)' :
+                        member.preferredSide === 'both' ? 'Both sides' :
+                        member.preferredSide === 'right-pref' ? 'Right (preferred)' :
+                        'Right only'
+                      }
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          <div className="flex gap-1 ml-2">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(member)}
+                className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                title="Edit member"
+              >
+                <Edit3 size={14} />
+              </button>
+            )}
+            {showAdd && onAdd && (
+              <button
+                onClick={() => onAdd(member)}
+                className="p-1 text-gray-500 hover:text-green-600 transition-colors"
+                title="Add to lineup"
+              >
+                <Plus size={14} />
+              </button>
+            )}
+            {showRemove && onRemove && (
+              <button
+                onClick={() => onRemove(member.id)}
+                className="p-1 text-gray-500 hover:text-red-600 transition-colors"
+                title="Remove"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex gap-1 ml-2">
-        {onEdit && (
-          <button
-            onClick={() => onEdit(member)}
-            className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-            title="Edit member"
-          >
-            <Edit3 size={14} />
-          </button>
-        )}
-        {showAdd && onAdd && (
-          <button
-            onClick={() => onAdd(member)}
-            className="p-1 text-gray-500 hover:text-green-600 transition-colors"
-            title="Add to lineup"
-          >
-            <Plus size={14} />
-          </button>
-        )}
-        {showRemove && onRemove && (
-          <button
-            onClick={() => onRemove(member.id)}
-            className="p-1 text-gray-500 hover:text-red-600 transition-colors"
-            title="Remove"
-          >
-            ×
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-);
+    );
   
   // Add Member Modal Component
   const AddMemberModal = () => (
