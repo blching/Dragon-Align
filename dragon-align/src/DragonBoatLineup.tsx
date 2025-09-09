@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Users, Scale, Target, RotateCcw, Download, Upload, Lock, Unlock, Edit3, Search, Trash2, GripVertical, X } from 'lucide-react';
+import { Plus, Users, Scale, Target, RotateCcw, Download, Upload, Lock, Unlock, Edit3, Search, Trash2, GripVertical, X, Save } from 'lucide-react';
 
 // Define TypeScript interfaces for our data structures
 interface TeamMember {
@@ -121,7 +121,7 @@ const DragonBoatLineup: React.FC = () => {
   const [activeTab, setActiveTab] = useState('roster');
   const [selectedMembers, setSelectedMembers] = useState<TeamMember[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
+  const [filterRole, setFilterRole] = useState<'all' | 'paddler' | 'drummer' | 'steerer'>('all');
   const [filterGender, setFilterGender] = useState('all');
   const [filterSide, setFilterSide] = useState('all');
   const [alternativePaddlers, setAlternativePaddlers] = useState<TeamMember[]>(loadFromStorage<TeamMember[]>('alternativePaddlers', []));
@@ -133,11 +133,35 @@ const DragonBoatLineup: React.FC = () => {
     roles: ['paddler'],
     gender: 'male'
   });
+  const [rosters, setRosters] = useState<Roster[]>(loadFromStorage<Roster[]>('rosters', [
+    {
+      id: 'master',
+      name: 'Master Roster',
+      type: 'master',
+      members: teamRoster, // Your existing teamRoster
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ]));
 
-  const [isDragging, setIsDragging] = useState(false);
+  const [_isDragging, setIsDragging] = useState(false);
   const [dragOverPosition, setDragOverPosition] = useState<string | null>(null);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
- 
+  
+  const [currentRosterId, setCurrentRosterId] = useState<string>(loadFromStorage<string>('currentRosterId', 'master'));
+  const [savedLineups, setSavedLineups] = useState<SavedLineup[]>(loadFromStorage<SavedLineup[]>('savedLineups', []));
+  const [folders, _setFolders] = useState<Folder[]>(loadFromStorage<Folder[]>('folders', []));
+  const [currentView, setCurrentView] = useState<'roster' | 'lineup' | 'management'>('roster');
+  const [managementView, setManagementView] = useState<'rosters' | 'lineups'>('rosters');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTag, setFilterTag] = useState<string>('all');
+  const [filterFolder, setFilterFolder] = useState<string>('all');
+
+  // Get current roster
+  //const currentRoster = useMemo(() => {
+  //  return rosters.find(r => r.id === currentRosterId) || rosters[0];
+  //}, [rosters, currentRosterId]);
+
   // Save data to localStorage whenever it changes
   useEffect(() => {
     const saveToStorage = (key: string, value: unknown) => {
@@ -148,12 +172,114 @@ const DragonBoatLineup: React.FC = () => {
       }
     };
 
+    saveToStorage('rosters', rosters);
+    saveToStorage('currentRosterId', currentRosterId);
+    saveToStorage('savedLineups', savedLineups);
+    saveToStorage('folders', folders);
     saveToStorage('teamRoster', teamRoster);
     saveToStorage('currentLineup', currentLineup);
     saveToStorage('lineup', lineup);
     saveToStorage('lockedPositions', lockedPositions);
     saveToStorage('alternativePaddlers', alternativePaddlers);
-  }, [teamRoster, currentLineup, lineup, lockedPositions, alternativePaddlers]);
+  }, [rosters, currentRosterId, savedLineups, folders, teamRoster, currentLineup, lineup, lockedPositions, alternativePaddlers]);
+
+  // Function to create a new roster
+  const createRoster = (name: string, type: Roster['type'], description?: string) => {
+    const newRoster: Roster = {
+      id: `roster-${Date.now()}`,
+      name,
+      description,
+      type,
+      members: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setRosters(prev => [...prev, newRoster]);
+    return newRoster;
+  };
+
+  // Function to duplicate a roster
+  const duplicateRoster = (rosterId: string, newName: string) => {
+    const roster = rosters.find(r => r.id === rosterId);
+    if (!roster) return;
+    
+    const newRoster: Roster = {
+      ...roster,
+      id: `roster-${Date.now()}`,
+      name: newName,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setRosters(prev => [...prev, newRoster]);
+  };
+
+  // Function to save current lineup
+  const saveCurrentLineup = (name: string, tag: 'Practice' | 'Race' | 'Other', folder?: string, description?: string) => {
+    const newLineup: SavedLineup = {
+      id: `lineup-${Date.now()}`,
+      name,
+      tag,
+      folder,
+      description,
+      data: {
+        currentLineup,
+        alternativePaddlers,
+        lineup,
+        lockedPositions
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setSavedLineups(prev => [...prev, newLineup]);
+  };
+
+  // Function to load a saved lineup
+  const loadLineup = (lineupId: string) => {
+    const lineupToLoad = savedLineups.find(l => l.id === lineupId);
+    if (!lineupToLoad) return;
+    
+    setCurrentLineup(lineupToLoad.data.currentLineup);
+    setAlternativePaddlers(lineupToLoad.data.alternativePaddlers);
+    setLineup(lineupToLoad.data.lineup);
+    setLockedPositions(lineupToLoad.data.lockedPositions);
+  };
+
+  // Function to create a folder
+  {/* const createFolder = (name: string, type: 'lineup' | 'roster', parentId?: string) => {
+    const newFolder: Folder = {
+      id: `folder-${Date.now()}`,
+      name,
+      type,
+      parentId
+    };
+    
+    setFolders(prev => [...prev, newFolder]);
+  }; */}
+
+  // Filtered rosters and lineups for display
+  const filteredRosters = useMemo(() => {
+    return rosters.filter(roster => {
+      const matchesSearch = roster.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (roster.description && roster.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesType = filterTag === 'all' || roster.type === filterTag;
+      
+      return matchesSearch && matchesType;
+    });
+  }, [rosters, searchTerm, filterTag]);
+
+  const filteredLineups = useMemo(() => {
+    return savedLineups.filter(lineup => {
+      const matchesSearch = lineup.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (lineup.description && lineup.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesTag = filterTag === 'all' || lineup.tag === filterTag;
+      const matchesFolder = filterFolder === 'all' || lineup.folder === filterFolder;
+      
+      return matchesSearch && matchesTag && matchesFolder;
+    });
+  }, [savedLineups, searchTerm, filterTag, filterFolder]);
 
   // Initialize boat structure: 10 rows + drummer + steerer
   const initializeBoat = (): Boat => {
@@ -292,16 +418,6 @@ const DragonBoatLineup: React.FC = () => {
     }
   };
 
-  {/* const addToAlternatives = (member: TeamMember) => {
-    if (alternativePaddlers.length >= 8) {
-      alert('Maximum 8 alternative paddlers allowed');
-      return;
-    }
-    if (!alternativePaddlers.find(m => m.id === member.id) && !currentLineup.find(m => m.id === member.id)) {
-      setAlternativePaddlers(prev => [...prev, member]);
-    }
-  }; */}
-
   const removeFromAlternatives = (id: number) => {
     setAlternativePaddlers(prev => prev.filter(member => member.id !== id));
   };
@@ -410,7 +526,7 @@ const DragonBoatLineup: React.FC = () => {
   const getFilteredMembers = useMemo(() => {
     return teamRoster.filter(member => {
       const matchesSearch = member.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesRole = filterRole === 'all' || member.role === filterRole;
+      const matchesRole = filterRole === 'all' || member.roles.includes(filterRole as 'paddler' | 'drummer' | 'steerer');
       const matchesGender = filterGender === 'all' || member.gender === filterGender;
       const matchesSide = filterSide === 'all' || member.preferredSide === filterSide;
       
@@ -622,7 +738,7 @@ const DragonBoatLineup: React.FC = () => {
 
   // Enhanced placement algorithm with left-right balance as top priority
   // Filter out members already placed in specialized roles
-  const placedSpecializedIds = [boat.drummer?.id, boat.steerer?.id].filter(Boolean);
+  //const placedSpecializedIds = [boat.drummer?.id, boat.steerer?.id].filter(Boolean);
 
   /* const availablePaddlersForSeats = availablePaddlers.filter(
   //  p => !placedSpecializedIds.includes(p.id)
@@ -677,7 +793,7 @@ const DragonBoatLineup: React.FC = () => {
       });
       return positions;
     };
-
+    
     const placePaddler = (paddler: TeamMember, preferredRows: number[] | null = null) => {
       if (placedPaddlers >= 20) return false;
 
@@ -692,8 +808,16 @@ const DragonBoatLineup: React.FC = () => {
         candidatePositions = availablePositions;
       }
 
+      interface PositionWithScore {
+        row: number;
+        side: 'left' | 'right';
+        position: 'front' | 'back';
+        rowObj: BoatRow;
+        score: number;
+      }
+
       // Prioritize left-right balance above all else
-      const bestPosition = candidatePositions.reduce((best, current) => {
+      const bestPosition = candidatePositions.reduce((best: PositionWithScore | null, current) => {
         let score = 0;
         
         // Left-right balance is the highest priority (60% of total score)
@@ -702,7 +826,7 @@ const DragonBoatLineup: React.FC = () => {
         const weightDifference = Math.abs(currentSideWeight + paddler.weight - otherSideWeight);
         
         // Lower weight difference gets higher score
-        score += (1000 - weightDifference) * 0.8;
+        score += (1000 - weightDifference) * 0.7;
 
         // Prefer paddler's preferred side (20% of total score)
         if (paddler.preferredSide === current.side) score += 200;
@@ -719,9 +843,17 @@ const DragonBoatLineup: React.FC = () => {
         
         // Prefer front/back for lighter paddlers
         if (paddler.weight < 140 && ([1, 2, 3, 8, 9, 10].includes(current.row))) score += 50;
+        
+        if (best === null) {
+          return { ...current, score };
+        }
 
-        return score > (best.score || 0) ? { ...current, score } : best;
-      }, {} as {row: number, side: 'left' | 'right', position: 'front' | 'back', rowObj: BoatRow, score: number});
+        return score > best.score ? { ...current, score } : best;
+      }, null as PositionWithScore | null);
+
+      if (!bestPosition) {
+        return false;
+      }
 
       if (bestPosition.rowObj) {
         if (bestPosition.side === 'left') {
@@ -1511,7 +1643,12 @@ const DragonBoatLineup: React.FC = () => {
                 type="number"
                 placeholder="Weight (lbs)"
                 value={editingMember.weight}
-                onChange={(e) => setEditingMember({ ...editingMember, weight: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Convert the string value to a number, or use 0 if empty
+                  const numValue = value === '' ? 0 : Number(value);
+                  setEditingMember({ ...editingMember, weight: numValue });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 min="70"
                 max="330"
@@ -1629,6 +1766,17 @@ const DragonBoatLineup: React.FC = () => {
             <Trash2 size={16} />
             Clear All
           </button>
+          <button
+            onClick={() => setCurrentView('management')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              currentView === 'management'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Save size={16} />
+            Manage
+          </button>
         </div>
       </div>
 
@@ -1654,6 +1802,183 @@ const DragonBoatLineup: React.FC = () => {
           ))}
         </nav>
       </div>
+      
+      {currentView === 'management' && (
+        <div className="space-y-6">
+          <div className="flex gap-4 mb-6">
+            <button
+              onClick={() => setManagementView('rosters')}
+              className={`px-4 py-2 rounded-md ${
+                managementView === 'rosters' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Rosters
+            </button>
+            <button
+              onClick={() => setManagementView('lineups')}
+              className={`px-4 py-2 rounded-md ${
+                managementView === 'lineups' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Lineups
+            </button>
+          </div>
+
+          {/* Search and Filter */}
+          <div className="flex gap-4 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder={`Search ${managementView}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-3 py-2 border border-gray-300 rounded-md w-full"
+              />
+            </div>
+            <select
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md"
+            >
+              <option value="all">All Types</option>
+              {managementView === 'rosters' ? (
+                <>
+                  <option value="master">Master</option>
+                  <option value="practice">Practice</option>
+                  <option value="event">Event</option>
+                  <option value="other">Other</option>
+                </>
+              ) : (
+                <>
+                  <option value="Practice">Practice</option>
+                  <option value="Race">Race</option>
+                  <option value="Other">Other</option>
+                </>
+              )}
+            </select>
+            {managementView === 'lineups' && (
+              <select
+                value={filterFolder}
+                onChange={(e) => setFilterFolder(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="all">All Folders</option>
+                {folders.filter(f => f.type === 'lineup').map(folder => (
+                  <option key={folder.id} value={folder.id}>{folder.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* Create New Button */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">
+              {managementView === 'rosters' ? 'Rosters' : 'Saved Lineups'}
+            </h3>
+            <button
+              onClick={() => {
+                if (managementView === 'rosters') {
+                  // Open create roster modal
+                  const name = prompt('Enter roster name:');
+                  if (name) {
+                    const type = prompt('Select type (master, practice, event, other):') as Roster['type'];
+                    if (['master', 'practice', 'event', 'other'].includes(type)) {
+                      createRoster(name, type);
+                    }
+                  }
+                } else {
+                  // Open create lineup modal
+                  const name = prompt('Enter lineup name:');
+                  if (name) {
+                    const tag = prompt('Select tag (Practice, Race, Other):') as 'Practice' | 'Race' | 'Other';
+                    if (['Practice', 'Race', 'Other'].includes(tag)) {
+                      saveCurrentLineup(name, tag);
+                    }
+                  }
+                }
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              + New {managementView === 'rosters' ? 'Roster' : 'Lineup'}
+            </button>
+          </div>
+
+          {/* List of Items */}
+          <div className="grid gap-4">
+            {managementView === 'rosters' ? (
+              filteredRosters.map(roster => (
+                <div key={roster.id} className="p-4 border rounded-lg bg-white shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">{roster.name}</h4>
+                      <p className="text-sm text-gray-600">{roster.description}</p>
+                      <div className="flex gap-2 mt-2">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          {roster.type}
+                        </span>
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                          {roster.members.length} members
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCurrentRosterId(roster.id)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                      >
+                        Load
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newName = prompt('Enter new name:', `${roster.name} Copy`);
+                          if (newName) duplicateRoster(roster.id, newName);
+                        }}
+                        className="px-3 py-1 bg-gray-200 rounded-md text-sm"
+                      >
+                        Duplicate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              filteredLineups.map(lineup => (
+                <div key={lineup.id} className="p-4 border rounded-lg bg-white shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">{lineup.name}</h4>
+                      <p className="text-sm text-gray-600">{lineup.description}</p>
+                      <div className="flex gap-2 mt-2">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          {lineup.tag}
+                        </span>
+                        {lineup.folder && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                            {folders.find(f => f.id === lineup.folder)?.name || lineup.folder}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => loadLineup(lineup.id)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                      >
+                        Load
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tab Content */}
       {activeTab === 'roster' && (
@@ -1689,7 +2014,7 @@ const DragonBoatLineup: React.FC = () => {
             </div>
             <select
               value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
+              onChange={(e) => setFilterRole(e.target.value as 'all' | 'paddler' | 'drummer' | 'steerer')}
               className="px-3 py-2 border border-gray-300 rounded-md"
             >
               <option value="all">All Roles</option>
