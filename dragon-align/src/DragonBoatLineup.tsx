@@ -1,78 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Users, Scale, Target, RotateCcw, Download, Upload, Lock, Unlock, Edit3, Search, Trash2, GripVertical, X, Save } from 'lucide-react';
 
-// Define TypeScript interfaces for our data structures
-interface TeamMember {
-  id: number;
-  name: string;
-  weight: number;
-  preferredSide: 'left' | 'left-pref' | 'both' | 'right-pref' | 'right';
-  roles: ('paddler' | 'drummer' | 'steerer')[];
-  gender: 'male' | 'female' | 'neutral';
-}
-
-interface BoatRow {
-  row: number;
-  left: TeamMember | null;
-  right: TeamMember | null;
-}
-
-interface Boat {
-  rows: BoatRow[];
-  drummer: TeamMember | null;
-  steerer: TeamMember | null;
-  stats?: BoatStats;
-}
-
-interface BoatStats {
-  totalPaddlers: number;
-  leftWeight: number;
-  rightWeight: number;
-  weightDifference: number;
-  preferencesSatisfied: number;
-  genderDistribution: {
-    male: number;
-    female: number;
-    neutral: number;
-  };
-  frontBackWeight: {
-    frontWeight: number;
-    backWeight: number;
-  };
-}
-
-interface Roster {
-  id: string;
-  name: string;
-  description?: string;
-  type: 'master' | 'practice' | 'event' | 'other';
-  members: TeamMember[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface SavedLineup {
-  id: string;
-  name: string;
-  tag: 'Practice' | 'Race' | 'Other';
-  folder?: string;
-  description?: string;
-  data: {
-    currentLineup: TeamMember[];
-    alternativePaddlers: TeamMember[];
-    lineup: Boat | null;
-    lockedPositions: Record<string, TeamMember>;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Folder {
-  id: string;
-  name: string;
-  type: 'lineup' | 'roster';
-  parentId?: string; // For nested folders
-}
+// Import types
+import type { TeamMember, Boat, Roster, SavedLineup, Folder } from './types';
 
 const DragonBoatLineup: React.FC = () => {
   // Load initial data from localStorage if available
@@ -156,11 +86,6 @@ const DragonBoatLineup: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTag, setFilterTag] = useState<string>('all');
   const [filterFolder, setFilterFolder] = useState<string>('all');
-
-  // Get current roster
-  //const currentRoster = useMemo(() => {
-  //  return rosters.find(r => r.id === currentRosterId) || rosters[0];
-  //}, [rosters, currentRosterId]);
 
   // Save data to localStorage whenever it changes
   useEffect(() => {
@@ -967,6 +892,7 @@ const DragonBoatLineup: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     setDragOverPosition(null);
+    setDragOverSection(null);
     
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
@@ -975,8 +901,8 @@ const DragonBoatLineup: React.FC = () => {
       if (!id) return;
       
       const draggedMember = teamRoster.find(m => m.id === id) || 
-                           currentLineup.find(m => m.id === id) || 
-                           alternativePaddlers.find(m => m.id === id);
+                          currentLineup.find(m => m.id === id) || 
+                          alternativePaddlers.find(m => m.id === id);
       
       if (!draggedMember) return;
       
@@ -1023,7 +949,7 @@ const DragonBoatLineup: React.FC = () => {
       }
       
       // Handle drop to active lineup
-      if (targetPosition === 'active') {
+      else if (targetPosition === 'active') {
         // If coming from boat, remove from boat
         if (source === 'boat' && lineup) {
           const newLineup = { ...lineup };
@@ -1071,7 +997,7 @@ const DragonBoatLineup: React.FC = () => {
       }
       
       // Handle drop to boat position (including swapping)
-      if (targetPosition === 'drummer' || targetPosition === 'steerer' || targetPosition.includes('-')) {
+      else if (targetPosition === 'drummer' || targetPosition === 'steerer' || targetPosition.includes('-')) {
         // Check if position is locked
         if (lockedPositions[targetPosition]) return;
         
@@ -1290,7 +1216,7 @@ const DragonBoatLineup: React.FC = () => {
     const isSidePosition = isLeftPosition || isRightPosition;
     
     // Check if member's preference matches the position
-    let sideMatch = false;
+    let indicatorColor = '';
     let sideLetter = '';
     
     if (member && isSidePosition) {
@@ -1303,9 +1229,23 @@ const DragonBoatLineup: React.FC = () => {
         sideLetter = 'B';
       }
       
-      // Check if preference matches position
-      sideMatch = (isLeftPosition && (member.preferredSide === 'left' || member.preferredSide === 'left-pref' || member.preferredSide === 'both')) ||
-                  (isRightPosition && (member.preferredSide === 'right' || member.preferredSide === 'right-pref' || member.preferredSide === 'both'));
+      // Determine color based on preference and position match
+      if (member.preferredSide === 'both') {
+        // Both sides - always green
+        indicatorColor = 'bg-green-200 text-green-800';
+      } else if (
+        (isLeftPosition && (member.preferredSide === 'left' || member.preferredSide === 'left-pref')) ||
+        (isRightPosition && (member.preferredSide === 'right' || member.preferredSide === 'right-pref'))
+      ) {
+        // On preferred side - green
+        indicatorColor = 'bg-green-200 text-green-800';
+      } else if (
+        (isLeftPosition && (member.preferredSide === 'right' || member.preferredSide === 'right-pref')) ||
+        (isRightPosition && (member.preferredSide === 'left' || member.preferredSide === 'left-pref'))
+      ) {
+        // On opposite side - orange
+        indicatorColor = 'bg-orange-200 text-orange-800';
+      }
     }
     
     return (
@@ -1339,9 +1279,7 @@ const DragonBoatLineup: React.FC = () => {
             
             {/* Side preference indicator */}
             {isSidePosition && (
-              <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-tl-lg flex items-center justify-center text-xs font-bold ${
-                sideMatch ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-              }`}>
+              <div className={`absolute bottom-0 right-0 w-4 h-4 rounded-tl-lg flex items-center justify-center text-xs font-bold ${indicatorColor}`}>
                 {sideLetter}
               </div>
             )}
@@ -2175,47 +2113,41 @@ const DragonBoatLineup: React.FC = () => {
               </div>
 
               {/* Alternative Paddlers */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Scale size={18} />
-                  Alternative Paddlers ({alternativePaddlers.length}/8)
-                </h3>
-                <div 
-                  className={`min-h-32 border-2 rounded-lg p-3 transition-all ${
-                    dragOverSection === 'alternatives' 
-                      ? 'border-yellow-500 bg-yellow-100 scale-105' 
-                      : 'border-yellow-300 border-dashed bg-yellow-50'
-                  }`}
-                  onDragOver={(e) => handleDragOver(e, null, 'alternatives')}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, 'alternatives')}
-                >
-                  {alternativePaddlers.length > 0 ? (
-                    <div className="space-y-2">
-                      {alternativePaddlers.map((member) => (
-                        <MemberCard
-                          key={member.id}
-                          member={member}
-                          onRemove={() => removeFromAlternatives(member.id)}
-                          onAdd={() => moveToActive(member)}
-                          showAdd={currentLineup.length < 22}
-                          showRemove={true}
-                          draggable={true}
-                          className="bg-yellow-100 border-yellow-300 hover:shadow-md transition-shadow"
-                          source="alternatives"
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className={`text-center py-6 transition-colors ${
-                      dragOverSection === 'alternatives' ? 'text-yellow-800' : 'text-yellow-700'
-                    }`}>
-                      <Scale size={24} className="mx-auto mb-2" />
-                      <p className="text-sm">Drop paddlers here for alternatives</p>
-                      <p className="text-xs">or drag from boat positions</p>
-                    </div>
-                  )}
-                </div>
+              <div 
+                className={`min-h-32 border-2 rounded-lg p-3 transition-all ${
+                  dragOverSection === 'alternatives' 
+                    ? 'border-yellow-500 bg-yellow-100 scale-105' 
+                    : 'border-yellow-300 border-dashed bg-yellow-50'
+                }`}
+                onDragOver={(e) => handleDragOver(e, null, 'alternatives')}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'alternatives')}
+              >
+                {alternativePaddlers.length > 0 ? (
+                  <div className="space-y-2">
+                    {alternativePaddlers.map((member) => (
+                      <MemberCard
+                        key={member.id}
+                        member={member}
+                        onRemove={() => removeFromAlternatives(member.id)}
+                        onAdd={() => moveToActive(member)}
+                        showAdd={currentLineup.length < 22}
+                        showRemove={true}
+                        draggable={true}
+                        className="bg-yellow-100 border-yellow-300 hover:shadow-md transition-shadow"
+                        source="alternatives"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`text-center py-6 transition-colors ${
+                    dragOverSection === 'alternatives' ? 'text-yellow-800' : 'text-yellow-700'
+                  }`}>
+                    <Scale size={24} className="mx-auto mb-2" />
+                    <p className="text-sm">Drop paddlers here for alternatives</p>
+                    <p className="text-xs">or drag from boat positions</p>
+                  </div>
+                )}
               </div>
             </div>
 

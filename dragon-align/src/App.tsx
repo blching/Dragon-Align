@@ -9,7 +9,7 @@ function App() {
 
       <Router>
         <Routes>
-          <Route path="/" element={<DragonBoatLineup/>}></Route>
+          <Route path="/Dragon-Align" element={<DragonBoatLineup/>}></Route>
         </Routes>
       </Router>
 
